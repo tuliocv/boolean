@@ -613,7 +613,7 @@ if view == "👤 Aluno":
                 else:
                     st.error(f"❌ Incorreto. Resposta certa: **{st.session_state.last_answer}**")
 
-                st.info("📌 Justificativa (didática):")
+                st.info("📌 Justificativa:")
                 st.write(st.session_state.last_explain)
 
                 if st.button("➡️ Próximo"):
