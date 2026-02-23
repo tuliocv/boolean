@@ -511,7 +511,7 @@ if view == "👤 Aluno":
         with c4:
             st.metric("🔥 Streak", st.session_state.streak)
 
-        st.caption("Pontuação final = acertos + bônus por sequência. % oficial = somente acertos / total.")
+        st.caption("Pontuação final = acertos + bônus por sequência.")
 
         if st.session_state.q_index >= total:
             st.success("🎉 Quiz finalizado!")
