@@ -420,7 +420,7 @@ QUESTIONS = [
     },
     "tip": "OR só é false se as duas forem false."
     },
-    [
+
     # =========================
     # 🟡 NÍVEL MÉDIO (12)
     # =========================
