@@ -12,7 +12,7 @@ import streamlit as st
 # =========================
 st.set_page_config(page_title="Jogo de Boolean (Java)", page_icon="✅", layout="centered")
 st.title("✅ Jogo: Boolean em Java")
-st.caption("")
+st.caption("Percentual oficial de acerto + Pontuação final com bônus por sequência 🔥 | Dificuldade por questão 📶")
 
 
 # =========================
@@ -34,18 +34,19 @@ ADMIN_USER, ADMIN_PASS = get_admin_credentials()
 # STORAGE (CSV)
 # =========================
 DATA_DIR = Path("data")
-SCORES_FILE = DATA_DIR / "boolean_scores.csv"
-ANSWERS_FILE = DATA_DIR / "boolean_answers.csv"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# separa acerto oficial e pontuação final
+SCORES_FILE = DATA_DIR / "boolean_scores.csv"          # apenas finalizados
+ANSWERS_FILE = DATA_DIR / "boolean_answers.csv"        # log por questão
+PROGRESS_FILE = DATA_DIR / "boolean_progress.csv"      # progresso parcial (por aluno)
+
 SCORES_HEADERS = [
     "timestamp_utc",
     "student_name",
-    "base_correct",        # acertos oficiais (0..30)
-    "final_points",        # acertos + bônus
+    "base_correct",
+    "final_points",
     "total",
-    "percent_official",    # % oficial baseado só em acertos
+    "percent_official",
     "max_streak"
 ]
 
@@ -57,17 +58,36 @@ ANS_HEADERS = [
     "is_correct"
 ]
 
+PROGRESS_HEADERS = [
+    "timestamp_utc",
+    "student_name",
+    "q_index",
+    "total",
+    "base_correct",
+    "final_points",
+    "percent_official_live",
+    "streak",
+    "max_streak",
+    "status"   # "IN_PROGRESS" | "FINISHED"
+]
+
+
+def ensure_file(path: Path, headers: list[str]):
+    if not path.exists():
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(headers)
+
 
 def ensure_scores_file():
-    if not SCORES_FILE.exists():
-        with open(SCORES_FILE, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(SCORES_HEADERS)
+    ensure_file(SCORES_FILE, SCORES_HEADERS)
 
 
 def ensure_answers_file():
-    if not ANSWERS_FILE.exists():
-        with open(ANSWERS_FILE, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(ANS_HEADERS)
+    ensure_file(ANSWERS_FILE, ANS_HEADERS)
+
+
+def ensure_progress_file():
+    ensure_file(PROGRESS_FILE, PROGRESS_HEADERS)
 
 
 def load_scores():
@@ -100,6 +120,25 @@ def load_answers():
     return rows
 
 
+def load_progress():
+    ensure_progress_file()
+    rows = []
+    with open(PROGRESS_FILE, "r", newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            try:
+                row["q_index"] = int(row.get("q_index", 0))
+                row["total"] = int(row.get("total", 0))
+                row["base_correct"] = int(row.get("base_correct", 0))
+                row["final_points"] = int(row.get("final_points", 0))
+                row["percent_official_live"] = float(row.get("percent_official_live", 0.0))
+                row["streak"] = int(row.get("streak", 0))
+                row["max_streak"] = int(row.get("max_streak", 0))
+                rows.append(row)
+            except Exception:
+                pass
+    return rows
+
+
 def append_score(student_name: str, base_correct: int, final_points: int, total: int, max_streak: int):
     ensure_scores_file()
     percent_official = (base_correct / total) * 100 if total else 0.0
@@ -117,14 +156,61 @@ def append_answer(student_name: str, question_id: str, level: str, is_correct: b
         csv.writer(f).writerow([ts, student_name, question_id, level, int(is_correct)])
 
 
-def clear_scores():
-    if SCORES_FILE.exists():
-        SCORES_FILE.unlink()
-    ensure_scores_file()
+def upsert_progress(student_name: str, q_index: int, total: int, base_correct: int, final_points: int,
+                    percent_official_live: float, streak: int, max_streak: int, status: str):
+    """
+    Atualiza a linha do aluno no arquivo de progresso.
+    (Implementação simples: lê tudo e regrava)
+    """
+    ensure_progress_file()
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-    if ANSWERS_FILE.exists():
-        ANSWERS_FILE.unlink()
-    ensure_answers_file()
+    rows = []
+    found = False
+    with open(PROGRESS_FILE, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            if (r.get("student_name") or "").strip().lower() == student_name.strip().lower():
+                r = {
+                    "timestamp_utc": ts,
+                    "student_name": student_name,
+                    "q_index": str(q_index),
+                    "total": str(total),
+                    "base_correct": str(base_correct),
+                    "final_points": str(final_points),
+                    "percent_official_live": f"{percent_official_live:.2f}",
+                    "streak": str(streak),
+                    "max_streak": str(max_streak),
+                    "status": status
+                }
+                found = True
+            rows.append(r)
+
+    if not found:
+        rows.append({
+            "timestamp_utc": ts,
+            "student_name": student_name,
+            "q_index": str(q_index),
+            "total": str(total),
+            "base_correct": str(base_correct),
+            "final_points": str(final_points),
+            "percent_official_live": f"{percent_official_live:.2f}",
+            "streak": str(streak),
+            "max_streak": str(max_streak),
+            "status": status
+        })
+
+    with open(PROGRESS_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=PROGRESS_HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def clear_all_data():
+    for p, h in [(SCORES_FILE, SCORES_HEADERS), (ANSWERS_FILE, ANS_HEADERS), (PROGRESS_FILE, PROGRESS_HEADERS)]:
+        if p.exists():
+            p.unlink()
+        ensure_file(p, h)
 
 
 # =========================
@@ -139,7 +225,6 @@ def difficulty_bar(level: str):
 
 
 def streak_bonus_points(streak: int) -> int:
-    # streak=1 -> +0, streak=2 -> +1, streak=3 -> +2, ...
     return max(0, streak - 1)
 
 
@@ -153,10 +238,6 @@ def shuffle_options_keep_answer(options: list[str], answer: str) -> list[str]:
 
 
 def get_fixed_options_for_question(qid: str, options: list[str], answer: str) -> list[str]:
-    """
-    Embaralha opções UMA vez por questão e guarda no session_state.
-    Evita que o radio "mude sozinho" a cada rerun.
-    """
     key = f"opts_{qid}"
     if key not in st.session_state:
         st.session_state[key] = shuffle_options_keep_answer(options, answer)
@@ -164,254 +245,130 @@ def get_fixed_options_for_question(qid: str, options: list[str], answer: str) ->
 
 
 # =========================
-# QUESTÕES (30) — variedade + explicação didática
+# QUESTÕES (30)
 # =========================
 QUESTIONS = [
     # --- Fácil ---
-    {
-        "id": "Q01", "level": "Fácil",
-        "prompt": "Qual das declarações abaixo é válida em Java?",
-        "options": ['boolean ok = true;', 'boolean ok = "true";', 'boolean ok = 1;', "boolean ok = True;"],
-        "answer": 'boolean ok = true;',
-        "explain": (
-            "Em Java, o tipo **boolean** só aceita **dois valores literais**: **true** e **false**.\n"
-            "- `\"true\"` (com aspas) é **String**, não boolean.\n"
-            "- `1` é inteiro.\n"
-            "- `True` (T maiúsculo) **não existe** em Java (é `true`)."
-        ),
-    },
-    {
-        "id": "Q02", "level": "Fácil",
-        "prompt": "Qual expressão resulta em um boolean (true/false)?",
-        "options": ["10 + 5", "idade >= 18", "nota * 2", '"18"'],
-        "answer": "idade >= 18",
-        "explain": (
-            "Operadores de comparação (`>=`, `<=`, `>`, `<`, `==`, `!=`) **sempre produzem boolean**.\n"
-            "- `10 + 5` e `nota * 2` produzem números.\n"
-            "- `\"18\"` é texto (String)."
-        ),
-    },
-    {
-        "id": "Q03", "level": "Fácil",
-        "prompt": "Qual operador representa o 'E' lógico em Java?",
-        "options": ["&&", "||", "!", "=="],
-        "answer": "&&",
-        "explain": "`&&` é AND (E lógico). Só é true quando as duas partes são true.",
-    },
-    {
-        "id": "Q04", "level": "Fácil",
-        "prompt": "Qual operador representa o 'OU' lógico em Java?",
-        "options": ["&&", "||", "!=", "<="],
-        "answer": "||",
-        "explain": "`||` é OR (OU lógico). É true quando pelo menos uma parte é true.",
-    },
-    {
-        "id": "Q05", "level": "Fácil",
-        "prompt": "Qual operador representa o 'NÃO' lógico em Java?",
-        "options": ["!", "&&", "||", "=="],
-        "answer": "!",
-        "explain": "`!` inverte o boolean: !true = false e !false = true.",
-    },
-    {
-        "id": "Q06", "level": "Fácil",
-        "prompt": "O que este código imprime?",
-        "code": "int a = 5, b = 7;\nSystem.out.println(a > b);",
-        "options": ["true", "false", "5", "7"],
-        "answer": "false",
-        "explain": "5 > 7 é falso, então imprime `false`.",
-    },
-    {
-        "id": "Q07", "level": "Fácil",
-        "prompt": "O que este código imprime?",
-        "code": "int a = 5;\nSystem.out.println(a == 5);",
-        "options": ["true", "false", "5", "erro"],
-        "answer": "true",
-        "explain": "5 == 5 é verdadeiro, então imprime `true`.",
-    },
-    {
-        "id": "Q08", "level": "Fácil",
-        "prompt": "O que este código imprime?",
-        "code": "boolean matriculado = false;\nSystem.out.println(!matriculado);",
-        "options": ["true", "false", "erro", "!false"],
-        "answer": "true",
-        "explain": "!false vira true, então imprime `true`.",
-    },
-    {
-        "id": "Q09", "level": "Fácil",
-        "prompt": "Qual alternativa descreve melhor um boolean?",
-        "options": ["Um texto com letras", "Um número inteiro", "Um tipo que representa verdadeiro/falso", "Um tipo para decimais"],
-        "answer": "Um tipo que representa verdadeiro/falso",
-        "explain": "boolean representa apenas dois valores: `true` ou `false`.",
-    },
-    {
-        "id": "Q10", "level": "Fácil",
-        "prompt": "O que este código imprime?",
-        "code": "int nota = 6;\nSystem.out.println(nota >= 6);",
-        "options": ["true", "false", "6", "erro"],
-        "answer": "true",
-        "explain": "6 >= 6 é verdadeiro, então imprime `true`.",
-    },
+    {"id": "Q01", "level": "Fácil", "prompt": "Qual das declarações abaixo é válida em Java?",
+     "options": ['boolean ok = true;', 'boolean ok = "true";', 'boolean ok = 1;', "boolean ok = True;"],
+     "answer": 'boolean ok = true;',
+     "explain": "boolean só aceita true/false (sem aspas). \"true\" é String; 1 é int; True não existe em Java."},
+    {"id": "Q02", "level": "Fácil", "prompt": "Qual expressão resulta em um boolean (true/false)?",
+     "options": ["10 + 5", "idade >= 18", "nota * 2", '"18"'],
+     "answer": "idade >= 18",
+     "explain": "Comparações (>=, <=, >, <, ==, !=) produzem boolean. As outras geram número ou texto."},
+    {"id": "Q03", "level": "Fácil", "prompt": "Qual operador representa o 'E' lógico em Java?",
+     "options": ["&&", "||", "!", "=="], "answer": "&&",
+     "explain": "&& é AND (E). Só é true quando as duas condições são true."},
+    {"id": "Q04", "level": "Fácil", "prompt": "Qual operador representa o 'OU' lógico em Java?",
+     "options": ["&&", "||", "!=", "<="], "answer": "||",
+     "explain": "|| é OR (OU). É true se pelo menos uma condição for true."},
+    {"id": "Q05", "level": "Fácil", "prompt": "Qual operador representa o 'NÃO' lógico em Java?",
+     "options": ["!", "&&", "||", "=="], "answer": "!",
+     "explain": "! inverte o valor: !true=false e !false=true."},
+    {"id": "Q06", "level": "Fácil", "prompt": "O que este código imprime?",
+     "code": "int a = 5, b = 7;\nSystem.out.println(a > b);",
+     "options": ["true", "false", "5", "7"], "answer": "false",
+     "explain": "5 > 7 é false. Logo imprime false."},
+    {"id": "Q07", "level": "Fácil", "prompt": "O que este código imprime?",
+     "code": "int a = 5;\nSystem.out.println(a == 5);",
+     "options": ["true", "false", "5", "erro"], "answer": "true",
+     "explain": a:= "a==5 vira 5==5, que é true. Imprime true."},
+    {"id": "Q08", "level": "Fácil", "prompt": "O que este código imprime?",
+     "code": "boolean matriculado = false;\nSystem.out.println(!matriculado);",
+     "options": ["true", "false", "erro", "!false"], "answer": "true",
+     "explain": "matriculado é false. !false vira true. Imprime true."},
+    {"id": "Q09", "level": "Fácil", "prompt": "Qual alternativa descreve melhor um boolean?",
+     "options": ["Um texto com letras", "Um número inteiro", "Um tipo que representa verdadeiro/falso", "Um tipo para decimais"],
+     "answer": "Um tipo que representa verdadeiro/falso",
+     "explain": "boolean é um tipo lógico que representa true/false."},
+    {"id": "Q10", "level": "Fácil", "prompt": "O que este código imprime?",
+     "code": "int nota = 6;\nSystem.out.println(nota >= 6);",
+     "options": ["true", "false", "6", "erro"], "answer": "true",
+     "explain": "6 >= 6 é true (>= aceita igualdade). Imprime true."},
 
     # --- Médio ---
-    {
-        "id": "Q11", "level": "Médio",
-        "prompt": "O que este código imprime?",
-        "code": "int idade = 16;\nboolean temRG = true;\nSystem.out.println(idade >= 18 && temRG);",
-        "options": ["true", "false", "16", "erro"],
-        "answer": "false",
-        "explain": "16 >= 18 é false. false && true = false.",
-    },
-    {
-        "id": "Q12", "level": "Médio",
-        "prompt": "O que este código imprime?",
-        "code": "int idade = 16;\nboolean temRG = true;\nSystem.out.println(idade >= 18 || temRG);",
-        "options": ["true", "false", "erro", "16"],
-        "answer": "true",
-        "explain": "16 >= 18 é false. false || true = true.",
-    },
-    {
-        "id": "Q13", "level": "Médio",
-        "prompt": "O que este código imprime?",
-        "code": "boolean matriculado = false;\nSystem.out.println(!!matriculado);",
-        "options": ["true", "false", "erro", "!!false"],
-        "answer": "false",
-        "explain": "Dupla negação volta ao valor original. matriculado é false.",
-    },
-    {
-        "id": "Q14", "level": "Médio",
-        "prompt": "Traduza: “Entra se tem ingresso E não está banido”.",
-        "options": ["temIngresso && !banido", "temIngresso || !banido", "!temIngresso && banido", "temIngresso && banido"],
-        "answer": "temIngresso && !banido",
-        "explain": "Precisamos das duas condições: tem ingresso E não banido.",
-    },
-    {
-        "id": "Q15", "level": "Médio",
-        "prompt": "Traduza: “Pode fazer substitutiva se faltou OU teve atestado”.",
-        "options": ["faltou && temAtestado", "faltou || temAtestado", "!faltou || temAtestado", "faltou && !temAtestado"],
-        "answer": "faltou || temAtestado",
-        "explain": "No OU, basta uma condição ser verdadeira.",
-    },
-    {
-        "id": "Q16", "level": "Médio",
-        "prompt": "Traduza: “Desconto se é aluno E (pagou em dia OU tem bolsa)”.",
-        "options": ["ehAluno && pagouEmDia || temBolsa", "ehAluno && (pagouEmDia || temBolsa)", "(ehAluno && pagouEmDia) || temBolsa", "ehAluno || (pagouEmDia && temBolsa)"],
-        "answer": "ehAluno && (pagouEmDia || temBolsa)",
-        "explain": "O parêntese garante que 'pagou em dia OU tem bolsa' fique agrupado.",
-    },
-    {
-        "id": "Q17", "level": "Médio",
-        "prompt": "O que imprime?",
-        "code": "int idade = 18;\nboolean autorizacao = false;\nSystem.out.println(idade >= 18 && autorizacao);",
-        "options": ["true", "false", "erro", "18"],
-        "answer": "false",
-        "explain": "18>=18 é true, mas true && false = false.",
-    },
-    {
-        "id": "Q18", "level": "Médio",
-        "prompt": "O que imprime?",
-        "code": "boolean a = true;\nboolean b = false;\nSystem.out.println(!(a && b));",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "(true && false)=false; !false=true.",
-    },
-    {
-        "id": "Q19", "level": "Médio",
-        "prompt": "O que imprime?",
-        "code": "boolean a = true;\nboolean b = false;\nSystem.out.println(a && (b || true));",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "(false||true)=true; true&&true=true.",
-    },
-    {
-        "id": "Q20", "level": "Médio",
-        "prompt": "Qual condição é equivalente a “NÃO (A OU B)”?",
-        "options": ["!A || !B", "!A && !B", "A && B", "!(A && B)"],
-        "answer": "!A && !B",
-        "explain": "Lei de De Morgan: !(A||B) == (!A && !B).",
-    },
+    {"id": "Q11", "level": "Médio", "prompt": "O que este código imprime?",
+     "code": "int idade = 16;\nboolean temRG = true;\nSystem.out.println(idade >= 18 && temRG);",
+     "options": ["true", "false", "16", "erro"], "answer": "false",
+     "explain": "idade>=18 é false. false && true = false."},
+    {"id": "Q12", "level": "Médio", "prompt": "O que este código imprime?",
+     "code": "int idade = 16;\nboolean temRG = true;\nSystem.out.println(idade >= 18 || temRG);",
+     "options": ["true", "false", "erro", "16"], "answer": "true",
+     "explain": "idade>=18 é false. false || true = true."},
+    {"id": "Q13", "level": "Médio", "prompt": "O que este código imprime?",
+     "code": "boolean matriculado = false;\nSystem.out.println(!!matriculado);",
+     "options": ["true", "false", "erro", "!!false"], "answer": "false",
+     "explain": "Dupla negação volta ao original. matriculado é false."},
+    {"id": "Q14", "level": "Médio", "prompt": "Traduza: “Entra se tem ingresso E não está banido”.",
+     "options": ["temIngresso && !banido", "temIngresso || !banido", "!temIngresso && banido", "temIngresso && banido"],
+     "answer": "temIngresso && !banido",
+     "explain": "Precisa das duas condições: temIngresso e não banido."},
+    {"id": "Q15", "level": "Médio", "prompt": "Traduza: “Pode fazer substitutiva se faltou OU teve atestado”.",
+     "options": ["faltou && temAtestado", "faltou || temAtestado", "!faltou || temAtestado", "faltou && !temAtestado"],
+     "answer": "faltou || temAtestado",
+     "explain": "OU: basta uma condição ser true."},
+    {"id": "Q16", "level": "Médio", "prompt": "Traduza: “Desconto se é aluno E (pagou em dia OU tem bolsa)”.",
+     "options": ["ehAluno && pagouEmDia || temBolsa", "ehAluno && (pagouEmDia || temBolsa)",
+                 "(ehAluno && pagouEmDia) || temBolsa", "ehAluno || (pagouEmDia && temBolsa)"],
+     "answer": "ehAluno && (pagouEmDia || temBolsa)",
+     "explain": "Parênteses garantem o agrupamento: primeiro (pagouEmDia || temBolsa), depois && com ehAluno."},
+    {"id": "Q17", "level": "Médio", "prompt": "O que imprime?",
+     "code": "int idade = 18;\nboolean autorizacao = false;\nSystem.out.println(idade >= 18 && autorizacao);",
+     "options": ["true", "false", "erro", "18"], "answer": "false",
+     "explain": "18>=18 é true. true && false = false."},
+    {"id": "Q18", "level": "Médio", "prompt": "O que imprime?",
+     "code": "boolean a = true;\nboolean b = false;\nSystem.out.println(!(a && b));",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "(true&&false)=false; !false=true."},
+    {"id": "Q19", "level": "Médio", "prompt": "O que imprime?",
+     "code": "boolean a = true;\nboolean b = false;\nSystem.out.println(a && (b || true));",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "(false||true)=true; true&&true=true."},
+    {"id": "Q20", "level": "Médio", "prompt": "Qual condição é equivalente a “NÃO (A OU B)”?",
+     "options": ["!A || !B", "!A && !B", "A && B", "!(A && B)"], "answer": "!A && !B",
+     "explain": "De Morgan: !(A||B) = (!A && !B)."},
 
     # --- Difícil ---
-    {
-        "id": "Q21", "level": "Difícil",
-        "prompt": "Precedência: o que imprime?",
-        "code": "boolean x = true;\nboolean y = false;\nSystem.out.println(x || y && false);",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "&& vem antes: (y&&false)=false; true||false=true.",
-    },
-    {
-        "id": "Q22", "level": "Difícil",
-        "prompt": "Precedência: o que imprime?",
-        "code": "boolean x = false;\nboolean y = true;\nSystem.out.println(x || y && false);",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "false",
-        "explain": "&& vem antes: (true&&false)=false; false||false=false.",
-    },
-    {
-        "id": "Q23", "level": "Difícil",
-        "prompt": "O que imprime?",
-        "code": "int a = 2;\nint b = 3;\nSystem.out.println(!(a > b) && (b > 0));",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "a>b é false; !false=true; b>0 é true; true&&true=true.",
-    },
-    {
-        "id": "Q24", "level": "Difícil",
-        "prompt": "Qual expressão é equivalente a “A OU (B E C)”?",
-        "options": ["(A || B) && C", "A || (B && C)", "(A && B) || C", "A && (B || C)"],
-        "answer": "A || (B && C)",
-        "explain": "O AND precisa ficar agrupado: A || (B && C).",
-    },
-    {
-        "id": "Q25", "level": "Difícil",
-        "prompt": "Qual condição representa: “loginOk se usuario e senha não estão vazios”?",
-        "options": [
-            'usuario != "" && senha != ""',
-            'usuario == "" && senha == ""',
-            'usuario != "" || senha != ""',
-            '!usuario && !senha'
-        ],
-        "answer": 'usuario != "" && senha != ""',
-        "explain": "Ambos devem estar preenchidos → &&. (Em Java real, usar .isEmpty/.equals).",
-    },
-    {
-        "id": "Q26", "level": "Difícil",
-        "prompt": "O que imprime?",
-        "code": "boolean a = false;\nboolean b = false;\nSystem.out.println(!(a || b) || (a && b));",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "a||b=false; !(false)=true; (a&&b)=false; true||false=true.",
-    },
-    {
-        "id": "Q27", "level": "Difícil",
-        "prompt": "O que imprime?",
-        "code": "boolean a = true;\nboolean b = true;\nSystem.out.println(!(a && b) || (a && b));",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "Se X=(a&&b), expressão vira (!X || X), sempre true.",
-    },
-    {
-        "id": "Q28", "level": "Difícil",
-        "prompt": "Qual é o resultado de: true && false || true ?",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "true",
-        "explain": "&& antes: true&&false=false; false||true=true.",
-    },
-    {
-        "id": "Q29", "level": "Difícil",
-        "prompt": "Qual expressão é equivalente a “(A E B) OU (A E C)”?",
-        "options": ["A && (B || C)", "(A || B) && C", "(A && B) || C", "A || (B && C)"],
-        "answer": "A && (B || C)",
-        "explain": "Fatoração: (A&&B)||(A&&C) = A&&(B||C).",
-    },
-    {
-        "id": "Q30", "level": "Difícil",
-        "prompt": "O que imprime?",
-        "code": "boolean A = false;\nboolean B = true;\nboolean C = true;\nSystem.out.println(A || B && !C);",
-        "options": ["true", "false", "erro", "depende"],
-        "answer": "false",
-        "explain": "!C=false; B&&false=false; A||false=false.",
-    },
+    {"id": "Q21", "level": "Difícil", "prompt": "Precedência: o que imprime?",
+     "code": "boolean x = true;\nboolean y = false;\nSystem.out.println(x || y && false);",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "&& vem antes: (y&&false)=false. true||false=true."},
+    {"id": "Q22", "level": "Difícil", "prompt": "Precedência: o que imprime?",
+     "code": "boolean x = false;\nboolean y = true;\nSystem.out.println(x || y && false);",
+     "options": ["true", "false", "erro", "depende"], "answer": "false",
+     "explain": "&& vem antes: (true&&false)=false. false||false=false."},
+    {"id": "Q23", "level": "Difícil", "prompt": "O que imprime?",
+     "code": "int a = 2;\nint b = 3;\nSystem.out.println(!(a > b) && (b > 0));",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "a>b é false; !false=true; b>0 é true; true&&true=true."},
+    {"id": "Q24", "level": "Difícil", "prompt": "Qual expressão é equivalente a “A OU (B E C)”?",
+     "options": ["(A || B) && C", "A || (B && C)", "(A && B) || C", "A && (B || C)"],
+     "answer": "A || (B && C)",
+     "explain": "É A ou (B e C juntos). AND agrupado: A || (B && C)."},
+    {"id": "Q25", "level": "Difícil", "prompt": "Qual condição representa: “loginOk se usuario e senha não estão vazios”?",
+     "options": ['usuario != "" && senha != ""', 'usuario == "" && senha == ""', 'usuario != "" || senha != ""', '!usuario && !senha'],
+     "answer": 'usuario != "" && senha != ""',
+     "explain": "Ambos devem estar preenchidos → && (em Java real: .isEmpty/.equals)."},
+    {"id": "Q26", "level": "Difícil", "prompt": "O que imprime?",
+     "code": "boolean a = false;\nboolean b = false;\nSystem.out.println(!(a || b) || (a && b));",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "a||b=false; !(false)=true; (a&&b)=false; true||false=true."},
+    {"id": "Q27", "level": "Difícil", "prompt": "O que imprime?",
+     "code": "boolean a = true;\nboolean b = true;\nSystem.out.println(!(a && b) || (a && b));",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "Se X=(a&&b), vira (!X || X), sempre true."},
+    {"id": "Q28", "level": "Difícil", "prompt": "Qual é o resultado de: true && false || true ?",
+     "options": ["true", "false", "erro", "depende"], "answer": "true",
+     "explain": "&& antes: true&&false=false; false||true=true."},
+    {"id": "Q29", "level": "Difícil", "prompt": "Qual expressão é equivalente a “(A E B) OU (A E C)”?",
+     "options": ["A && (B || C)", "(A || B) && C", "(A && B) || C", "A || (B && C)"],
+     "answer": "A && (B || C)",
+     "explain": "Fatoração: (A&&B)||(A&&C)=A&&(B||C)."},
+    {"id": "Q30", "level": "Difícil", "prompt": "O que imprime?",
+     "code": "boolean A = false;\nboolean B = true;\nboolean C = true;\nSystem.out.println(A || B && !C);",
+     "options": ["true", "false", "erro", "depende"], "answer": "false",
+     "explain": "!C=false; B&&false=false; A||false=false."},
 ]
 
 
@@ -419,11 +376,8 @@ QUESTIONS = [
 # SESSION STATE
 # =========================
 def clear_fixed_option_states():
-    # remove opções fixadas de execuções anteriores (Refazer/Trocar aluno)
     for k in list(st.session_state.keys()):
-        if str(k).startswith("opts_Q"):
-            del st.session_state[k]
-        if str(k).startswith("radio_Q"):
+        if str(k).startswith("opts_Q") or str(k).startswith("radio_Q"):
             del st.session_state[k]
 
 
@@ -475,7 +429,7 @@ view = st.sidebar.radio("Ir para:", ["👤 Aluno", "🔐 Admin"], index=0)
 # ==========================================================
 if view == "👤 Aluno":
     st.subheader("👤 Área do aluno")
-    st.caption("")
+    st.caption("Digite seu nome para iniciar. % oficial considera apenas acertos (sem bônus).")
 
     if not st.session_state.student_name:
         nome = st.text_input("Nome do aluno:", placeholder="Ex.: Maria Silva")
@@ -488,6 +442,9 @@ if view == "👤 Aluno":
                 else:
                     st.session_state.student_name = nome_limpo
                     reset_all()
+                    # registra que começou
+                    total = len(QUESTIONS)
+                    upsert_progress(nome_limpo, 0, total, 0, 0, 0.0, 0, 0, "IN_PROGRESS")
                     st.rerun()
         with col2:
             if st.button("🧹 Limpar"):
@@ -511,7 +468,20 @@ if view == "👤 Aluno":
         with c4:
             st.metric("🔥 Streak", st.session_state.streak)
 
-        st.caption("Pontuação final = acertos + bônus por sequência.")
+        st.caption("Pontuação final = acertos + bônus por sequência. % oficial = somente acertos / total.")
+
+        # atualiza progresso sempre que renderiza (garante que admin veja)
+        upsert_progress(
+            st.session_state.student_name,
+            st.session_state.q_index,
+            total,
+            st.session_state.base_correct,
+            st.session_state.final_points,
+            percent_official_live,
+            st.session_state.streak,
+            st.session_state.max_streak,
+            "FINISHED" if st.session_state.q_index >= total else "IN_PROGRESS"
+        )
 
         if st.session_state.q_index >= total:
             st.success("🎉 Quiz finalizado!")
@@ -531,6 +501,19 @@ if view == "👤 Aluno":
                     st.session_state.max_streak
                 )
                 st.session_state.saved_score = True
+
+                # marca como finalizado no progresso
+                upsert_progress(
+                    st.session_state.student_name,
+                    total,
+                    total,
+                    st.session_state.base_correct,
+                    st.session_state.final_points,
+                    percent_official,
+                    st.session_state.streak,
+                    st.session_state.max_streak,
+                    "FINISHED"
+                )
 
             col1, col2 = st.columns(2)
             with col1:
@@ -556,9 +539,7 @@ if view == "👤 Aluno":
 
             disabled = st.session_state.show_feedback
 
-            # opções fixas por questão (não muda no clique do radio)
             options = get_fixed_options_for_question(q["id"], q["options"], q["answer"])
-
             letters = ["A", "B", "C", "D"]
             labeled = [f"{letters[i]}) {opt}" for i, opt in enumerate(options)]
             label_to_value = {labeled[i]: options[i] for i in range(len(options))}
@@ -576,7 +557,6 @@ if view == "👤 Aluno":
                 if st.button("✅ Confirmar"):
                     correct = (choice == q["answer"])
 
-                    # registra resposta por questão (para gráfico por dificuldade no admin)
                     append_answer(
                         st.session_state.student_name,
                         q["id"],
@@ -586,12 +566,9 @@ if view == "👤 Aluno":
 
                     if correct:
                         st.session_state.base_correct += 1
-
                         st.session_state.streak += 1
                         st.session_state.max_streak = max(st.session_state.max_streak, st.session_state.streak)
-
                         bonus = streak_bonus_points(st.session_state.streak)
-
                         st.session_state.final_points += 1 + bonus
                         st.session_state.last_bonus = bonus
                     else:
@@ -602,6 +579,21 @@ if view == "👤 Aluno":
                     st.session_state.last_explain = q["explain"]
                     st.session_state.last_answer = q["answer"]
                     st.session_state.show_feedback = True
+
+                    # grava progresso imediatamente (para admin ver)
+                    percent_official_live = (st.session_state.base_correct / total) * 100 if total else 0.0
+                    upsert_progress(
+                        st.session_state.student_name,
+                        st.session_state.q_index,
+                        total,
+                        st.session_state.base_correct,
+                        st.session_state.final_points,
+                        percent_official_live,
+                        st.session_state.streak,
+                        st.session_state.max_streak,
+                        "IN_PROGRESS"
+                    )
+
                     st.rerun()
 
             if st.session_state.show_feedback:
@@ -613,11 +605,10 @@ if view == "👤 Aluno":
                 else:
                     st.error(f"❌ Incorreto. Resposta certa: **{st.session_state.last_answer}**")
 
-                st.info("📌 Justificativa:")
+                st.info("📌 Justificativa (didática):")
                 st.write(st.session_state.last_explain)
 
                 if st.button("➡️ Próximo"):
-                    # limpa o radio dessa questão para não "vazar" seleção na próxima
                     rk = f"radio_{q['id']}"
                     if rk in st.session_state:
                         del st.session_state[rk]
@@ -636,7 +627,7 @@ if view == "👤 Aluno":
 # ==========================================================
 else:
     st.subheader("🔐 Área do administrador")
-    st.caption("Login para ver ranking, gráfico por dificuldade, exportar CSV e limpar respostas.")
+    st.caption("Login para ver ranking, progresso em andamento, gráfico por dificuldade, exportar CSV e limpar respostas.")
 
     if not st.session_state.admin_authed:
         user = st.text_input("Usuário")
@@ -661,17 +652,17 @@ else:
                 st.rerun()
 
         with col2:
-            if st.button("🗑️ Limpar todas as respostas"):
+            if st.button("🗑️ Limpar todos os dados"):
                 st.session_state.confirm_clear = True
 
         if st.session_state.confirm_clear:
-            st.warning("⚠️ Tem certeza que deseja apagar TODAS as respostas? Essa ação é irreversível.")
+            st.warning("⚠️ Tem certeza que deseja apagar TODAS as respostas e pontuações? Essa ação é irreversível.")
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("✅ Confirmar exclusão"):
-                    clear_scores()
+                    clear_all_data()
                     st.session_state.confirm_clear = False
-                    st.success("✔️ Todas as respostas foram apagadas.")
+                    st.success("✔️ Dados apagados.")
                     st.rerun()
             with c2:
                 if st.button("❌ Cancelar"):
@@ -680,18 +671,35 @@ else:
 
         rows = load_scores()
         answers = load_answers()
+        progress = load_progress()
+
+        # --------- PROGRESSO EM ANDAMENTO ----------
+        st.markdown("## ⏳ Alunos em andamento")
+        in_prog = [p for p in progress if p.get("status") == "IN_PROGRESS"]
+        if not in_prog:
+            st.info("Ninguém em andamento no momento.")
+        else:
+            # ordena pelos que mais avançaram
+            in_prog_sorted = sorted(in_prog, key=lambda x: (x["q_index"], x["percent_official_live"]), reverse=True)
+            view_rows = []
+            for p in in_prog_sorted:
+                view_rows.append({
+                    "Aluno": p["student_name"],
+                    "Progresso": f"{p['q_index']}/{p['total']}",
+                    "% oficial (parcial)": f"{p['percent_official_live']:.1f}%",
+                    "Pontos": p["final_points"],
+                    "Streak": p["streak"],
+                    "Max streak": p["max_streak"],
+                    "Atualizado (UTC)": p["timestamp_utc"]
+                })
+            st.dataframe(view_rows, use_container_width=True, hide_index=True)
 
         # --------- GRÁFICO POR DIFICULDADE ----------
         st.markdown("## 📊 Taxa de acerto por dificuldade")
         if not answers:
             st.info("Ainda não há respostas registradas por questão para calcular taxa por dificuldade.")
         else:
-            stats = {
-                "Fácil": {"correct": 0, "total": 0},
-                "Médio": {"correct": 0, "total": 0},
-                "Difícil": {"correct": 0, "total": 0},
-            }
-
+            stats = {"Fácil": {"correct": 0, "total": 0}, "Médio": {"correct": 0, "total": 0}, "Difícil": {"correct": 0, "total": 0}}
             for a in answers:
                 level = a.get("level", "Médio")
                 if level not in stats:
@@ -709,45 +717,29 @@ else:
             st.bar_chart({row["Dificuldade"]: row["Taxa (%)"] for row in chart_data})
             st.dataframe(chart_data, use_container_width=True, hide_index=True)
 
-        # --------- RANKING ----------
+        # --------- RANKING (finalizados) ----------
+        st.markdown("## 🏆 Ranking (finalizados)")
         if not rows:
-            st.info("Ainda não há pontuações registradas.")
+            st.warning("Ainda não há pontuações finalizadas (os alunos precisam concluir o quiz).")
         else:
-            # Melhor tentativa por aluno:
             best_by_student = {}
             for r in rows:
                 name = (r.get("student_name") or "").strip()
                 if not name:
                     continue
-                key = (
-                    r["percent_official"],
-                    r["final_points"],
-                    r.get("max_streak", 0),
-                    r["timestamp_utc"]
-                )
+                key = (r["percent_official"], r["final_points"], r.get("max_streak", 0), r["timestamp_utc"])
                 if name not in best_by_student:
                     best_by_student[name] = r
                 else:
                     cur = best_by_student[name]
-                    cur_key = (
-                        cur["percent_official"],
-                        cur["final_points"],
-                        cur.get("max_streak", 0),
-                        cur["timestamp_utc"]
-                    )
+                    cur_key = (cur["percent_official"], cur["final_points"], cur.get("max_streak", 0), cur["timestamp_utc"])
                     if key > cur_key:
                         best_by_student[name] = r
 
             best_list = list(best_by_student.values())
-            best_sorted = sorted(
-                best_list,
-                key=lambda x: (x["percent_official"], x["final_points"], x.get("max_streak", 0), x["timestamp_utc"]),
-                reverse=True
-            )
+            best_sorted = sorted(best_list, key=lambda x: (x["percent_official"], x["final_points"], x.get("max_streak", 0), x["timestamp_utc"]), reverse=True)
 
-            st.markdown("## 🏆 Ranking (Top 10) — com medalhas")
             medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-
             ranking_table = []
             for i, r in enumerate(best_sorted[:10], start=1):
                 ranking_table.append({
@@ -761,48 +753,17 @@ else:
                 })
             st.dataframe(ranking_table, use_container_width=True, hide_index=True)
 
-            bottom10 = sorted(
-                best_list,
-                key=lambda x: (x["percent_official"], x["final_points"], x.get("max_streak", 0), x["timestamp_utc"])
-            )[:10]
-
-            st.markdown("### 🧯 Bottom 10 (piores alunos)")
-            bottom_table = []
-            for i, r in enumerate(bottom10, start=1):
-                bottom_table.append({
-                    "Posição": i,
-                    "Aluno": r["student_name"],
-                    "✅ Acertos": f"{r['base_correct']}/{r['total']}",
-                    "📈 % oficial": f"{r['percent_official']:.1f}%",
-                    "🏁 Pontos finais": r["final_points"],
-                    "🔥 Max streak": r.get("max_streak", 0),
-                    "Última (UTC)": r["timestamp_utc"],
-                })
-            st.dataframe(bottom_table, use_container_width=True, hide_index=True)
-
-            st.markdown("### 🕒 Últimos 25 registros (raw)")
-            last = sorted(rows, key=lambda x: x["timestamp_utc"], reverse=True)[:25]
-            st.dataframe(last, use_container_width=True, hide_index=True)
-
-        # --------- DOWNLOAD CSV ----------
+        # --------- DOWNLOADS ----------
         st.markdown("## 📥 Exportar dados")
         ensure_scores_file()
         ensure_answers_file()
+        ensure_progress_file()
 
         with open(SCORES_FILE, "rb") as f:
-            st.download_button(
-                label="📥 Baixar CSV de Pontuações (boolean_scores.csv)",
-                data=f,
-                file_name="boolean_scores.csv",
-                mime="text/csv"
-            )
-
+            st.download_button("📥 Baixar CSV de Pontuações (finalizados)", f, file_name="boolean_scores.csv", mime="text/csv")
+        with open(PROGRESS_FILE, "rb") as f:
+            st.download_button("📥 Baixar CSV de Progresso (em andamento)", f, file_name="boolean_progress.csv", mime="text/csv")
         with open(ANSWERS_FILE, "rb") as f:
-            st.download_button(
-                label="📥 Baixar CSV de Respostas por Questão (boolean_answers.csv)",
-                data=f,
-                file_name="boolean_answers.csv",
-                mime="text/csv"
-            )
+            st.download_button("📥 Baixar CSV de Respostas por Questão", f, file_name="boolean_answers.csv", mime="text/csv")
 
-        st.caption(f"Armazenamento local: `{SCORES_FILE.as_posix()}` e `{ANSWERS_FILE.as_posix()}`")
+        st.caption(f"Arquivos: `{SCORES_FILE.as_posix()}`, `{PROGRESS_FILE.as_posix()}`, `{ANSWERS_FILE.as_posix()}`")
