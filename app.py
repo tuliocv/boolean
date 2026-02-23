@@ -475,7 +475,7 @@ view = st.sidebar.radio("Ir para:", ["👤 Aluno", "🔐 Admin"], index=0)
 # ==========================================================
 if view == "👤 Aluno":
     st.subheader("👤 Área do aluno")
-    st.caption("Digite seu nome para iniciar. % oficial considera apenas acertos (sem bônus).")
+    st.caption("")
 
     if not st.session_state.student_name:
         nome = st.text_input("Nome do aluno:", placeholder="Ex.: Maria Silva")
