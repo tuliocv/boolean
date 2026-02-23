@@ -252,6 +252,7 @@ def show_alternative_feedback(q: dict, chosen: str):
 # QUESTÕES (30) com rationale por alternativa
 # =========================
 QUESTIONS = [
+
     {
     "id": "Q01", "level": "Fácil",
     "prompt": "Qual valor pode ser armazenado em uma variável boolean?",
@@ -688,7 +689,7 @@ QUESTIONS = [
     "code": "boolean A = true;\nboolean B = true;\nboolean C = true;\nSystem.out.println(A && (A || (B && C)));"
     }
     
-    ]
+]
 
 
 while len(QUESTIONS) < 30:
