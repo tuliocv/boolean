@@ -12,7 +12,7 @@ import streamlit as st
 # =========================
 st.set_page_config(page_title="Jogo de Boolean (Java)", page_icon="✅", layout="centered")
 st.title("✅ Jogo: Boolean em Java")
-st.caption("Quiz com bônus por sequência de acertos 🔥 + dificuldade por questão 📶 | Admin com ranking e limpeza.")
+st.caption("Quiz com bônus por sequência de acertos 🔥")
 
 
 # =========================
