@@ -253,49 +253,444 @@ def show_alternative_feedback(q: dict, chosen: str):
 # =========================
 QUESTIONS = [
     {
-        "id": "Q01", "level": "Fácil",
-        "prompt": "Qual das declarações abaixo é válida em Java?",
-        "options": ['boolean ok = true;', 'boolean ok = "true";', 'boolean ok = 1;', "boolean ok = True;"],
-        "answer": 'boolean ok = true;',
-        "rationale": {
-            'boolean ok = true;': "✅ Correta. `boolean` aceita os literais `true` e `false` (minúsculos) sem aspas.",
-            'boolean ok = "true";': "❌ Errada. `\"true\"` é uma **String**, não um boolean.",
-            'boolean ok = 1;': "❌ Errada. `1` é um inteiro. Java não converte número para boolean automaticamente.",
-            "boolean ok = True;": "❌ Errada. Em Java é `true`/`false` (minúsculos). `True` não é literal válido."
-        },
-        "tip": "Memorize: `boolean` = somente `true` ou `false` (sem aspas)."
+    "id": "Q01", "level": "Fácil",
+    "prompt": "Qual valor pode ser armazenado em uma variável boolean?",
+    "options": ["10", "true", "\"false\"", "1"],
+    "answer": "true",
+    "rationale": {
+    "10": "❌ 10 é número inteiro (int).",
+    "true": "✅ boolean aceita apenas true ou false.",
+    "\"false\"": "❌ Está entre aspas, portanto é String.",
+    "1": "❌ Java não converte 1 para boolean automaticamente."
     },
+    "tip": "Boolean só aceita true ou false, sem aspas."
+    },
+    
     {
-        "id": "Q02", "level": "Fácil",
-        "prompt": "Qual expressão resulta em um boolean (true/false)?",
-        "options": ["10 + 5", "idade >= 18", "nota * 2", '"18"'],
-        "answer": "idade >= 18",
-        "rationale": {
-            "10 + 5": "❌ Errada. Soma produz um **número** (int/long), não boolean.",
-            "idade >= 18": "✅ Correta. Comparações (`>=`, `<=`, `>`, `<`, `==`, `!=`) produzem boolean.",
-            "nota * 2": "❌ Errada. Multiplicação produz um número.",
-            '"18"': "❌ Errada. Isso é uma **String** literal."
-        },
-        "tip": "Se tem operador de comparação, a resposta é boolean."
+    "id": "Q02", "level": "Fácil",
+    "prompt": "O resultado de (5 > 3) é:",
+    "options": ["true", "false", "5", "3"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ 5 é maior que 3.",
+    "false": "❌ 5 > 3 é verdadeiro.",
+    "5": "❌ Comparação gera boolean, não número.",
+    "3": "❌ Comparação não retorna um dos operandos."
     },
+    "tip": "Operadores >, <, >=, <= sempre retornam boolean."
+    },
+    
     {
-        "id": "Q03", "level": "Fácil",
-        "prompt": "Qual operador representa o 'E' lógico em Java?",
-        "options": ["&&", "||", "!", "=="],
-        "answer": "&&",
-        "rationale": {
-            "&&": "✅ Correta. AND (E): só é true quando **as duas** condições são true.",
-            "||": "❌ Errada. OR (OU): true se **pelo menos uma** condição é true.",
-            "!": "❌ Errada. NOT (NÃO): inverte um boolean.",
-            "==": "❌ Errada. `==` compara igualdade (não é operador lógico AND/OR)."
-        },
-        "tip": "AND = `&&` | OR = `||` | NOT = `!`"
+    "id": "Q03", "level": "Fácil",
+    "prompt": "Qual operador significa 'OU' lógico?",
+    "options": ["&&", "||", "!", "=="],
+    "answer": "||",
+    "rationale": {
+    "&&": "❌ AND (E lógico).",
+    "||": "✅ OR (OU lógico).",
+    "!": "❌ NOT (negação).",
+    "==": "❌ Comparação de igualdade."
     },
-    # ---- Para manter a resposta objetiva, as demais 27 seguem o mesmo padrão ----
+    "tip": "|| lembra dois 'pipes' separados."
+    },
+    
+    {
+    "id": "Q04", "level": "Fácil",
+    "prompt": "Qual operador significa 'E' lógico?",
+    "options": ["&&", "||", "!=", "<="],
+    "answer": "&&",
+    "rationale": {
+    "&&": "✅ AND lógico.",
+    "||": "❌ OR lógico.",
+    "!=": "❌ Operador de diferença.",
+    "<=": "❌ Operador de comparação."
+    },
+    "tip": "&& exige que as duas condições sejam verdadeiras."
+    },
+    
+    {
+    "id": "Q05", "level": "Fácil",
+    "prompt": "Qual é o resultado de (10 == 10)?",
+    "options": ["true", "false", "10", "erro"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ 10 é igual a 10.",
+    "false": "❌ Eles são iguais.",
+    "10": "❌ Comparação não retorna número.",
+    "erro": "❌ A expressão é válida."
+    },
+    "tip": "== verifica igualdade."
+    },
+    
+    {
+    "id": "Q06", "level": "Fácil",
+    "prompt": "Qual é o resultado de !(true)?",
+    "options": ["true", "false", "erro", "!true"],
+    "answer": "false",
+    "rationale": {
+    "true": "❌ !true inverte o valor.",
+    "false": "✅ NOT true resulta em false.",
+    "erro": "❌ Sintaxe correta.",
+    "!true": "❌ O operador é avaliado."
+    },
+    "tip": "! inverte o valor lógico."
+    },
+    
+    {
+    "id": "Q07", "level": "Fácil",
+    "prompt": "Qual é o resultado de (3 != 5)?",
+    "options": ["true", "false", "3", "5"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ 3 é diferente de 5.",
+    "false": "❌ Eles são diferentes.",
+    "3": "❌ Não retorna número.",
+    "5": "❌ Não retorna número."
+    },
+    "tip": "!= significa diferente."
+    },
+    
+    {
+    "id": "Q08", "level": "Fácil",
+    "prompt": "Qual tipo de dado representa verdadeiro ou falso?",
+    "options": ["int", "double", "boolean", "String"],
+    "answer": "boolean",
+    "rationale": {
+    "int": "❌ Representa números inteiros.",
+    "double": "❌ Representa números decimais.",
+    "boolean": "✅ Representa true/false.",
+    "String": "❌ Representa texto."
+    },
+    "tip": "boolean = lógica."
+    },
+    
+    {
+    "id": "Q09", "level": "Fácil",
+    "prompt": "Qual é o resultado de (true && true)?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ Ambas são true.",
+    "false": "❌ AND só é false se alguma for false.",
+    "erro": "❌ Expressão válida.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "AND exige duas verdadeiras."
+    },
+    
+    {
+    "id": "Q10", "level": "Fácil",
+    "prompt": "Qual é o resultado de (true || false)?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ OR precisa de apenas uma true.",
+    "false": "❌ Há uma true.",
+    "erro": "❌ Expressão válida.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "OR aceita uma condição verdadeira."
+    },
+    
+    {
+    "id": "Q11", "level": "Fácil",
+    "prompt": "Qual é o resultado de (false && true)?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "false",
+    "rationale": {
+    "true": "❌ Uma das condições é false.",
+    "false": "✅ AND com false sempre resulta false.",
+    "erro": "❌ Sintaxe válida.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "Se houver false no AND, o resultado é false."
+    },
+    
+    {
+    "id": "Q12", "level": "Fácil",
+    "prompt": "Qual é o resultado de (false || false)?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "false",
+    "rationale": {
+    "true": "❌ Nenhuma é true.",
+    "false": "✅ OR só é false se ambas forem false.",
+    "erro": "❌ Sintaxe válida.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "OR só é false se as duas forem false."
+    },
+    [
+    # =========================
+    # 🟡 NÍVEL MÉDIO (12)
+    # =========================
+    {
+    "id": "Q13", "level": "Médio",
+    "prompt": "O que este código imprime?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "false",
+    "rationale": {
+    "true": "❌ 7 >= 10 é falso. Como é AND, um falso já derruba tudo.",
+    "false": "✅ `7 >= 10` é false e `true && false` = false.",
+    "erro": "❌ Código é válido.",
+    "depende": "❌ Não depende: as comparações são determinísticas."
+    },
+    "tip": "No AND (&&), basta uma parte ser false para o resultado ser false.",
+    "code": "int x = 7;\nboolean ok = (x >= 10) && true;\nSystem.out.println(ok);"
+    },
+    
+    {
+    "id": "Q14", "level": "Médio",
+    "prompt": "Traduza: “Acesso liberado se (temLogin E temSenha)”.",
+    "options": ["temLogin || temSenha", "temLogin && temSenha", "!temLogin && temSenha", "temLogin && !temSenha"],
+    "answer": "temLogin && temSenha",
+    "rationale": {
+    "temLogin || temSenha": "❌ Com OR, bastaria ter só login ou só senha, o que não faz sentido.",
+    "temLogin && temSenha": "✅ Precisa ter as duas condições verdadeiras.",
+    "!temLogin && temSenha": "❌ Exige NÃO ter login e ter senha (contraditório com a frase).",
+    "temLogin && !temSenha": "❌ Exige ter login e NÃO ter senha."
+    },
+    "tip": "Se a frase diz 'E', normalmente é &&."
+    },
+    
+    {
+    "id": "Q15", "level": "Médio",
+    "prompt": "Traduza: “Pode entrar se é VIP OU tem convite”.",
+    "options": ["ehVIP && temConvite", "ehVIP || temConvite", "!ehVIP || temConvite", "ehVIP && !temConvite"],
+    "answer": "ehVIP || temConvite",
+    "rationale": {
+    "ehVIP && temConvite": "❌ Exigiria ser VIP e ainda ter convite (mais restrito que o enunciado).",
+    "ehVIP || temConvite": "✅ Basta uma das condições para entrar.",
+    "!ehVIP || temConvite": "❌ Permitiria entrar mesmo NÃO sendo VIP (por causa do !ehVIP).",
+    "ehVIP && !temConvite": "❌ Exige ser VIP e não ter convite, não é a regra pedida."
+    },
+    "tip": "Se a frase diz 'OU', normalmente é ||."
+    },
+    
+    {
+    "id": "Q16", "level": "Médio",
+    "prompt": "O que imprime?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ (false || true) vira true, então true && true = true.",
+    "false": "❌ A parte (false || true) é true, não false.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende: valores já estão definidos."
+    },
+    "tip": "Resolva por partes: primeiro parênteses, depois AND/OR.",
+    "code": "boolean a = true;\nboolean b = false;\nSystem.out.println(a && (b || true));"
+    },
+    
+    {
+    "id": "Q17", "level": "Médio",
+    "prompt": "Qual expressão é equivalente a: “NÃO (A OU B)”?",
+    "options": ["!A || !B", "!A && !B", "A && B", "!(A && B)"],
+    "answer": "!A && !B",
+    "rationale": {
+    "!A || !B": "❌ Isso é 'não A OU não B' (fica mais permissivo).",
+    "!A && !B": "✅ Lei de De Morgan: !(A || B) = (!A && !B).",
+    "A && B": "❌ Isso é 'A e B', não tem negação.",
+    "!(A && B)": "❌ Isso é negação do AND, que equivale a (!A || !B), não ao enunciado."
+    },
+    "tip": "De Morgan: negou OR → vira AND com negações."
+    },
+    
+    {
+    "id": "Q18", "level": "Médio",
+    "prompt": "Qual expressão é equivalente a: “NÃO (A E B)”?",
+    "options": ["!A && !B", "!A || !B", "A || B", "!(A || B)"],
+    "answer": "!A || !B",
+    "rationale": {
+    "!A && !B": "❌ Isso equivale a !(A || B) (negou OR).",
+    "!A || !B": "✅ Lei de De Morgan: !(A && B) = (!A || !B).",
+    "A || B": "❌ OR sem negação.",
+    "!(A || B)": "❌ É negação do OR, não do AND."
+    },
+    "tip": "De Morgan: negou AND → vira OR com negações."
+    },
+    
+    {
+    "id": "Q19", "level": "Médio",
+    "prompt": "O que este código imprime?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ idade>=18 é true e temCarteira é false. true || false = true.",
+    "false": "❌ OR é true se pelo menos uma condição for true.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende: tudo foi definido."
+    },
+    "tip": "OR (||) precisa de apenas uma condição verdadeira.",
+    "code": "int idade = 20;\nboolean temCarteira = false;\nSystem.out.println((idade >= 18) || temCarteira);"
+    },
+    
+    {
+    "id": "Q20", "level": "Médio",
+    "prompt": "Qual alternativa garante o agrupamento correto para: “A e (B ou C)”?",
+    "options": ["A && B || C", "A && (B || C)", "(A && B) || C", "A || (B && C)"],
+    "answer": "A && (B || C)",
+    "rationale": {
+    "A && B || C": "❌ Sem parênteses, pode confundir leitura (apesar da precedência do &&).",
+    "A && (B || C)": "✅ Expressa exatamente o enunciado: A e (B ou C).",
+    "(A && B) || C": "❌ Isso significa (A e B) ou C (bem diferente).",
+    "A || (B && C)": "❌ Isso significa A ou (B e C)."
+    },
+    "tip": "Use parênteses para deixar intenção explícita."
+    },
+    
+    {
+    "id": "Q21", "level": "Médio",
+    "prompt": "O que imprime?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "false",
+    "rationale": {
+    "true": "❌ idade>=18 é false, então false && qualquer coisa = false.",
+    "false": "✅ idade=16 → (idade>=18)=false. false && true = false.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "No AND, se a primeira parte for false, o resultado será false.",
+    "code": "int idade = 16;\nboolean autorizado = true;\nSystem.out.println((idade >= 18) && autorizado);"
+    },
+    
+    {
+    "id": "Q22", "level": "Médio",
+    "prompt": "Qual expressão representa: “Aprovado se nota >= 6 E faltas <= 10”?",
+    "options": ["nota >= 6 || faltas <= 10", "nota >= 6 && faltas <= 10", "nota > 6 && faltas < 10", "nota <= 6 && faltas <= 10"],
+    "answer": "nota >= 6 && faltas <= 10",
+    "rationale": {
+    "nota >= 6 || faltas <= 10": "❌ Com OR, poderia aprovar com nota baixa só por ter poucas faltas.",
+    "nota >= 6 && faltas <= 10": "✅ Exige as duas condições do enunciado.",
+    "nota > 6 && faltas < 10": "❌ Muda as regras (troca >= por > e <=10 por <10).",
+    "nota <= 6 && faltas <= 10": "❌ Aprovaria nota 6 para baixo, o oposto."
+    },
+    "tip": "Repare nos detalhes: >= vs > e <= vs <."
+    },
+    
+    {
+    "id": "Q23", "level": "Médio",
+    "prompt": "O que imprime?",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ (!false)=true e (false||true)=true; true && true = true.",
+    "false": "❌ As duas partes viram true.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "Avalie negações primeiro e depois resolva parênteses.",
+    "code": "boolean A = false;\nboolean B = false;\nboolean C = true;\nSystem.out.println((!A) && (B || C));"
+    },
+    
+    {
+    "id": "Q24", "level": "Médio",
+    "prompt": "Qual alternativa está correta sobre precedência em Java?",
+    "options": ["|| tem precedência maior que &&", "&& tem precedência maior que ||", "! tem precedência menor que &&", "== tem precedência maior que !"],
+    "answer": "&& tem precedência maior que ||",
+    "rationale": {
+    "|| tem precedência maior que &&": "❌ É o contrário.",
+    "&& tem precedência maior que ||": "✅ Em Java, `!` > `&&` > `||` (em geral).",
+    "! tem precedência menor que &&": "❌ `!` tem precedência maior (é avaliado antes).",
+    "== tem precedência maior que !": "❌ `!` é operador unário e é avaliado antes."
+    },
+    "tip": "Memória rápida: ! primeiro, depois &&, depois ||."
+    },
+    
+    # =========================
+    # 🔴 NÍVEL DIFÍCIL (6)
+    # =========================
+    {
+    "id": "Q25", "level": "Difícil",
+    "prompt": "O que imprime? (Atenção à precedência)",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ Primeiro `&&`: (false && false)=false. Depois `true || false` = true.",
+    "false": "❌ OR com true no começo sempre dá true.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "&& é avaliado antes de ||. Depois aplique o OR.",
+    "code": "System.out.println(true || false && false);"
+    },
+    
+    {
+    "id": "Q26", "level": "Difícil",
+    "prompt": "O que imprime? (De Morgan na prática)",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ (A||B) é true, então !(A||B)=false. !A&& !B = false. false==false -> true.",
+    "false": "❌ As duas expressões são equivalentes; o == compara e dá true.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "De Morgan é equivalência: !(A||B) == (!A && !B).",
+    "code": "boolean A = true;\nboolean B = false;\nSystem.out.println((!(A || B)) == (!A && !B));"
+    },
+    
+    {
+    "id": "Q27", "level": "Difícil",
+    "prompt": "Qual expressão é equivalente a: (A && B) || (A && C) ?",
+    "options": ["A || (B && C)", "A && (B || C)", "(A || B) && (A || C)", "(!A && B) || C"],
+    "answer": "A && (B || C)",
+    "rationale": {
+    "A || (B && C)": "❌ Isso é outra estrutura: OR com AND dentro.",
+    "A && (B || C)": "✅ Fatoração: A comum → A && (B || C).",
+    "(A || B) && (A || C)": "❌ Isso é outra equivalência (distributiva diferente); pode até equivaler, mas não é a forma direta pedida.",
+    "(!A && B) || C": "❌ Expressão sem relação com a original."
+    },
+    "tip": "Fatore o que é comum: A aparece nas duas partes."
+    },
+    
+    {
+    "id": "Q28", "level": "Difícil",
+    "prompt": "O que imprime? (Cuidado com ! e parênteses)",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "false",
+    "rationale": {
+    "true": "❌ A primeira parte vira false e a segunda também.",
+    "false": "✅ (A&&B)=true → !(A&&B)=false; (A||B)=true → !A||!B=false; false||false=false.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "Calcule (A&&B) e (A||B) separadamente, depois negue.",
+    "code": "boolean A = true;\nboolean B = true;\nSystem.out.println(!(A && B) || (!A || !B));"
+    },
+    
+    {
+    "id": "Q29", "level": "Difícil",
+    "prompt": "O que imprime? (Tautologia)",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ X || !X sempre é true, independentemente do valor de X.",
+    "false": "❌ Uma tautologia nunca é false.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende: é sempre true."
+    },
+    "tip": "Padrão importante: X ou não-X = sempre verdadeiro.",
+    "code": "boolean X = false;\nSystem.out.println(X || !X);"
+    },
+    
+    {
+    "id": "Q30", "level": "Difícil",
+    "prompt": "O que imprime? (Distribuição + precedência)",
+    "options": ["true", "false", "erro", "depende"],
+    "answer": "true",
+    "rationale": {
+    "true": "✅ (B && C)=true; A || true = true; true && true = true.",
+    "false": "❌ A parte (B && C) já garante true.",
+    "erro": "❌ Código válido.",
+    "depende": "❌ Não depende."
+    },
+    "tip": "Primeiro avalie os parênteses. Depois o restante.",
+    "code": "boolean A = true;\nboolean B = true;\nboolean C = true;\nSystem.out.println(A && (A || (B && C)));"
+    }
+    
 ]
 
-# Completa até 30 questões mantendo variedade sem quebrar o app:
-# (Você pode substituir depois por um banco maior.)
+
 while len(QUESTIONS) < 30:
     base = random.choice(QUESTIONS)
     clone = dict(base)
