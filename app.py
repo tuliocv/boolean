@@ -688,7 +688,7 @@ QUESTIONS = [
     "code": "boolean A = true;\nboolean B = true;\nboolean C = true;\nSystem.out.println(A && (A || (B && C)));"
     }
     
-]
+    ]
 
 
 while len(QUESTIONS) < 30:
